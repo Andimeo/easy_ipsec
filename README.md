@@ -3,7 +3,7 @@ Easy IPSec
 
 ## Overview
 
-This project provides the ability to construct a simple and pure IPsec tunnel between gateways or hosts by just a few trivial scripts and programs. There's no need to install common VPN software like OpenSwan, nor to make lots of configurations. All you need to do are only two steps, i.e., make some trivial settings and run a script in your local box. And that's it. You don't even need to worry about the connection drops, because the session is never going to expire. The encryption key is randomly generated and securely distributed when you run the script, and there will not be rekeying any more. So if you want higher security, just put the script into your crontab.
+This project provides the ability to construct a simple and pure IPsec tunnel between gateways or hosts by just a few trivial scripts. There's no need to install common VPN software like OpenSwan, nor to make lots of configurations. All you need to do are only two steps, i.e., make some trivial settings and run a script in your local box. And that's it. You don't even need to worry about the connection drops, because the session is never going to expire. The encryption key is randomly generated and securely distributed when you run the script, and there will not be rekeying any more. So if you want higher security, just put the script into your crontab.
 
 Most of the steps in this document are under CentOS6. You may need to do some minor changes for some commands or paths under other distribution such as Ubuntu.
 
@@ -32,8 +32,16 @@ Most of the steps in this document are under CentOS6. You may need to do some mi
   1. update `net.ipv4.ip_forward = 1` in `/etc/sysctl.conf`
   2. run `sysctl -p` to load the config file.
 
-3.  Setup iptables. Basically, you don't need more rules than commons. Only for gateway, it is recommended to add following rule to limit the path MTU in case the hosts or sites behind it disallow ICMP traffic to get through their firewalls:
+3.  Setup iptables.
+  * Basically, you need rules to allow ESP traffic or specified UDP (if you choose UDP encapsulation) traffic to pass:
+    ```
+    iptables -A INPUT -p esp -m esp -j ACCEPT
+    ```
+    or
+    ```
+    iptables -A INPUT -p udp -m udp --dport <given_port_number> -j ACCEPT
+    ```
+  * For gateway, it is recommended to add following rule to limit the path MTU in case the hosts or sites behind it disallow ICMP traffic to get through their firewalls:
     ```
     iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1398
     ```
-
