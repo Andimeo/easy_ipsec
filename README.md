@@ -24,13 +24,13 @@ Most of the steps in this document are under CentOS6. You may need to do some mi
 ## Prepare
 
 1.  Setup accounts on both boxes:
-  a. for local box, it is quite straightful. You can use either root or an account with sudo privileges. Here we assume it `root`.
-  b. for remote box, you can use either root or account with sudo privileges. But since root login is usually forbidden in sshd config, it is recommended to choose the latter. Here we assume you use privileged user `remote_user`. In this case, you need to comment out `Defaults requiretty` in `/etc/suoders` to allow sudo commands via SSH.
-  c. Optionally, you can put `root`'s public key into `remote_user`'s `.ssh/authorized_keys` for a non-password ssh login. And you can make `remote_user` sudoable without password by replacing `remote_user`'s line into `remote_user ALL=(ALL) NOPASSWD: ALL` in `/etc/sudoers`. These two steps are especially useful if you want to create a cron job to periodically reconstruct the tunnel. But be careful about your accounts.
+  * for local box, it is quite straightful. You can use either root or an account with sudo privileges. Here we assume it `root`.
+  * for remote box, you can use either root or account with sudo privileges. But since root login is usually forbidden in sshd config, it is recommended to choose the latter. Here we assume you use privileged user `remote_user`. In this case, you need to comment out `Defaults requiretty` in `/etc/suoders` to allow sudo commands via SSH.
+  * Optionally, you can put `root`'s public key into `remote_user`'s `.ssh/authorized_keys` for a non-password ssh login. And you can make `remote_user` sudoable without password by replacing `remote_user`'s line into `remote_user ALL=(ALL) NOPASSWD: ALL` in `/etc/sudoers`. These two steps are especially useful if you want to create a cron job to periodically reconstruct the tunnel. But be careful about your accounts.
 
 2.  Allow IP forwarding on gateways. No need for Host-to-Host tunnel.
-  a. update `net.ipv4.ip_forward = 1` in `/etc/sysctl.conf`
-  b. run `sysctl -p` to load the config file.
+  1. update `net.ipv4.ip_forward = 1` in `/etc/sysctl.conf`
+  2. run `sysctl -p` to load the config file.
 
 3.  Setup iptables. Basically, you don't need more rules than commons. Only for gateway, it is recommended to add following rule to limit the path MTU in case the hosts or sites behind it disallow ICMP traffic to get through their firewalls:
     iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1398
