@@ -33,5 +33,7 @@ Most of the steps in this document are under CentOS6. You may need to do some mi
   2. run `sysctl -p` to load the config file.
 
 3.  Setup iptables. Basically, you don't need more rules than commons. Only for gateway, it is recommended to add following rule to limit the path MTU in case the hosts or sites behind it disallow ICMP traffic to get through their firewalls:
+    ```
     iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1398
+    ```
 
