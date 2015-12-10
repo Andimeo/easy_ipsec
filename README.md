@@ -10,7 +10,7 @@ Most of the steps in this document are under CentOS6. You may need to do some mi
 ## Features
 
 * Supports Host-to-Host, Host-to-Site, Site-to-Site tunnels.
-* Supports AES-256 encryption.
+* Supports AES-256 encryption and SHA256 authentication.
 * No IKE style handshaking, no heart-beating. Thus, no chances to be interrupted by censorship.
 * Supports both ESP and ESP-IN-UDP encapsulation. In additon, the UDP source/destination port numbers *CAN* be customized, which makes it possible to avoid being blocked by some advanced censorship ACLs.
 
@@ -36,9 +36,6 @@ Most of the steps in this document are under CentOS6. You may need to do some mi
   * Basically, you need rules to allow ESP traffic or specified UDP (if you choose UDP encapsulation) traffic to pass:
     ```
     iptables -A INPUT -p esp -m esp -j ACCEPT
-    ```
-    or
-    ```
     iptables -A INPUT -p udp -m udp --dport <given_port_number> -j ACCEPT
     ```
   * For gateway, it is recommended to add following rule to limit the path MTU in case the hosts or sites behind it disallow ICMP traffic to get through their firewalls:
