@@ -34,11 +34,11 @@ Most of the steps in this document are under CentOS6. You may need to do some mi
 
 3.  Setup iptables.
   * Basically, you need rules to allow ESP traffic or specified UDP (if you choose UDP encapsulation) traffic to pass:
-    ```
-    iptables -A INPUT -p esp -m esp -j ACCEPT
-    iptables -A INPUT -p udp -m udp --dport <given_port_number> -j ACCEPT
-    ```
+  ```
+  iptables -A INPUT -p esp -m esp -j ACCEPT
+  iptables -A INPUT -p udp -m udp --dport <given_port_number> -j ACCEPT
+  ```
   * For gateway, it is recommended to add following rule to limit the path MTU in case the hosts or sites behind it disallow ICMP traffic to get through their firewalls:
-    ```
-    iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1398
-    ```
+  ```
+  iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1398
+  ```
