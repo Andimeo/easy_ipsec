@@ -40,5 +40,11 @@ Most of the steps in this document are under CentOS6. You may need to do some mi
   ```
   * For gateway, it is recommended to add following rule to limit the path MTU in case the hosts or sites behind it disallow ICMP traffic to get through their firewalls:
   ```
+  # PMTU is 1438, TCP_MSS = 1438 - 20 (IP Header) - 20 (TCP Header) = 1398
   iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1398
+  ```
+  But if you choose UDP encapsulation, the MTU should be smaller:
+  ```
+  # PMTU is 1422, TCP_MSS = 1422 - 20 (IP Header) - 20 (TCP Header) = 1382
+  iptables -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1382
   ```

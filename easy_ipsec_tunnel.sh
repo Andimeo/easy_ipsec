@@ -81,7 +81,7 @@ function ip_creation_commands()
         echo "sudo ip addr add $1 dev $3;"
     fi
     if [[ "$2" != */0 ]]; then
-        cmd="sudo ip route add $2 dev $3"
+        cmd="sudo ip route add $2 dev $3 initcwnd 10"
         if [[ "$1" == */32 ]]; then
             # remove suffix /32
             cmd="$cmd src ${1%/32}"
@@ -94,7 +94,7 @@ function ip_creation_commands()
 function udp_daemon_commands()
 {
     EXE=udp_daemon.py
-    if [ "$UDP_ENCAP" != "" ]; then
+    if [ "$LOCAL_UDP_PORT" != "" ] && [ "$REMOTE_UDP_PORT" != "" ]; then
         echo "ps x | grep $EXE | grep -v grep | awk '{print \$1}' | xargs --no-run-if-empty sudo kill -9;"
         echo "echo '#!/usr/bin/python' > $EXE;"
         echo "echo 'import socket, time' >> $EXE;"
@@ -120,10 +120,10 @@ ssh $SSH_USER_HOST /bin/bash << EOF
     $(xfrm_creation_commands $REMOTE_PUBLIC_IP $LOCAL_PUBLIC_IP $REMOTE_NETWORK $LOCAL_NETWORK $REMOTE_UDP_PORT $LOCAL_UDP_PORT)
     $(ip_cleaning_commands $REMOTE_NETWORK $LOCAL_NETWORK $REMOTE_IFACE)
     $(ip_creation_commands $REMOTE_NETWORK $LOCAL_NETWORK $REMOTE_IFACE $LOCAL_IFACE)
-    $(udp_daemon_commands $REMOTE_PORT)
+    $(udp_daemon_commands $REMOTE_UDP_PORT)
 EOF
 
 # set local
 eval $(xfrm_creation_commands $LOCAL_PUBLIC_IP $REMOTE_PUBLIC_IP $LOCAL_NETWORK $REMOTE_NETWORK $LOCAL_UDP_PORT $REMOTE_UDP_PORT)
 eval $(ip_creation_commands $LOCAL_NETWORK $REMOTE_NETWORK $LOCAL_IFACE $REMOTE_IFACE)
-eval $(udp_daemon_commands $LOCAL_PORT)
+eval $(udp_daemon_commands $LOCAL_UDP_PORT)
