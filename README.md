@@ -3,7 +3,7 @@ Easy IPSec
 
 ## Overview
 
-This project provides the ability to construct a simple and pure IPsec tunnel between gateways or hosts by just a few trivial scripts. There's no need to install common VPN software like OpenSwan, nor to make lots of configurations. All you need to do are only two steps, i.e., make some trivial settings and run a script in your local box. And that's it. You don't even need to worry about the connection drops, because the session is never going to expire. The encryption key is randomly generated and securely distributed when you run the script, and there will not be rekeying any more. So if you want higher security, just put the script into your crontab.
+This project provides the ability to construct a simple and pure IPsec tunnel between gateways or hosts by just a single trivial script. There's no need to install common VPN software like OpenSwan, nor to make lots of configurations. All you need to do are only two steps, i.e., make some trivial settings and run a script in your local box. And that's it. You don't even need to worry about the connection drops, because the session is never going to expire. The encryption key is randomly generated and securely distributed when you run the script, and there will not be rekeying any more. So if you want higher security, just put the script into your crontab.
 
 Most of the steps in this document are under CentOS6. You may need to do some minor changes for some commands or paths under other distribution such as Ubuntu.
 
