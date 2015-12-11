@@ -37,20 +37,31 @@ LOCAL_IFACE="$5"
 REMOTE_IFACE="$6"
 SSH_USER_HOST="$7@$REMOTE_PUBLIC_IP"
 
-UDP_ENCAP=
-UDP_ENCAP_REVERSE=
+LOCAL_UDP_PORT=
+REMOTE_UDP_PORT=
 if [ "$8" != "" ]; then
-    LOCAL_PORT=$(echo $8 | awk ':' '{print $1}')
-    REMOTE_PORT=$(echo $8 | awk ':' '{print $2}')
-    if [ "$LOCAL_PORT" != "" ] && [ "$REMOTE_PORT" != "" ]; then
-        UDP_ENCAP="encap espinudp $LOCAL_PORT $REMOTE_PORT 0.0.0.0"
-        UDP_ENCAP_REVERSE="encap espinudp $REMOTE_PORT $LOCAL_PORT 0.0.0.0"
-    fi
+    LOCAL_UDP_PORT=$(echo $8 | awk -F':' '{print $1}')
+    REMOTE_UDP_PORT=$(echo $8 | awk -F':' '{print $2}')
 fi
 
 KEY1=0x`dd if=/dev/urandom count=32 bs=1 2> /dev/null| xxd -p -c 64`
 KEY2=0x`dd if=/dev/urandom count=32 bs=1 2> /dev/null| xxd -p -c 64`
 ID=0x`dd if=/dev/urandom count=4 bs=1 2> /dev/null| xxd -p -c 8`
+
+# params: $1 local_public_ip, $2 remote_public_ip, $3 local_network, $4 remote_network, $5 local_udp_port, $6 remote_udp_port
+function xfrm_creation_commands()
+{
+    if [ "$5" != "" ] && [ "$6" != "" ]; then
+        echo "sudo ip xfrm state add src $1 dst $2 proto esp spi $ID reqid $ID mode tunnel auth sha256 $KEY1 enc aes $KEY2 encap espinudp $5 $6 0.0.0.0;"
+        echo "sudo ip xfrm state add src $2 dst $1 proto esp spi $ID reqid $ID mode tunnel auth sha256 $KEY1 enc aes $KEY2 encap espinudp $6 $5 0.0.0.0;"
+    else
+        echo "sudo ip xfrm state add src $1 dst $2 proto esp spi $ID reqid $ID mode tunnel auth sha256 $KEY1 enc aes $KEY2;"
+        echo "sudo ip xfrm state add src $2 dst $1 proto esp spi $ID reqid $ID mode tunnel auth sha256 $KEY1 enc aes $KEY2;"
+    fi
+    echo "sudo ip xfrm policy add src $3 dst $4 dir out tmpl src $1 dst $2 proto esp reqid $ID mode tunnel;"
+    echo "sudo ip xfrm policy add src $4 dst $3 dir in tmpl src $2 dst $1 proto esp reqid $ID mode tunnel;"
+    echo "sudo ip xfrm policy add src $4 dst $3 dir fwd tmpl src $2 dst $1 proto esp reqid $ID mode tunnel;"
+}
 
 # params: $1 local_network, $2 remote_network, $3 local_iface
 function ip_cleaning_commands()
@@ -79,6 +90,24 @@ function ip_creation_commands()
     fi
 }
 
+# param: $1 local_udp_port
+function udp_daemon_commands()
+{
+    EXE=udp_daemon.py
+    if [ "$UDP_ENCAP" != "" ]; then
+        echo "ps x | grep $EXE | grep -v grep | awk '{print \$1}' | xargs --no-run-if-empty sudo kill -9;"
+        echo "echo '#!/usr/bin/python' > $EXE;"
+        echo "echo 'import socket, time' >> $EXE;"
+        echo "echo 's = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)' >> $EXE;"
+        # UDP_ENCAP=100, UDP_ENCAP_ESPINUDP=2
+        echo "echo 's.setsockopt(socket.IPPROTO_UDP, 100, 2)' >> $EXE;"
+        echo "echo \"s.bind(('0.0.0.0', $1))\" >> $EXE;"
+        echo "echo 'while True:' >> $EXE;"
+        echo "echo '    time.sleep(86400)' >> $EXE;"
+        echo "nohup sudo python ./$EXE 2>/dev/null 1>&2 &"
+    fi
+}
+
 # clean up local setting, this should be done before connecting to remote
 sudo ip xfrm state flush
 sudo ip xfrm policy flush
@@ -88,19 +117,13 @@ eval $(ip_cleaning_commands $LOCAL_NETWORK $REMOTE_NETWORK $LOCAL_IFACE)
 ssh $SSH_USER_HOST /bin/bash << EOF
     sudo ip xfrm state flush
     sudo ip xfrm policy flush
-    sudo ip xfrm state add src $LOCAL_PUBLIC_IP dst $REMOTE_PUBLIC_IP proto esp spi $ID reqid $ID mode tunnel auth sha256 $KEY1 enc aes $KEY2 $UDP_ENCAP
-    sudo ip xfrm state add src $REMOTE_PUBLIC_IP dst $LOCAL_PUBLIC_IP proto esp spi $ID reqid $ID mode tunnel auth sha256 $KEY1 enc aes $KEY2 $UDP_ENCAP_REVERSE
-    sudo ip xfrm policy add src $REMOTE_NETWORK dst $LOCAL_NETWORK dir out tmpl src $REMOTE_PUBLIC_IP dst $LOCAL_PUBLIC_IP proto esp reqid $ID mode tunnel
-    sudo ip xfrm policy add src $LOCAL_NETWORK dst $REMOTE_NETWORK dir in tmpl src $LOCAL_PUBLIC_IP dst $REMOTE_PUBLIC_IP proto esp reqid $ID mode tunnel
-    sudo ip xfrm policy add src $LOCAL_NETWORK dst $REMOTE_NETWORK dir fwd tmpl src $LOCAL_PUBLIC_IP dst $REMOTE_PUBLIC_IP proto esp reqid $ID mode tunnel
+    $(xfrm_creation_commands $REMOTE_PUBLIC_IP $LOCAL_PUBLIC_IP $REMOTE_NETWORK $LOCAL_NETWORK $REMOTE_UDP_PORT $LOCAL_UDP_PORT)
     $(ip_cleaning_commands $REMOTE_NETWORK $LOCAL_NETWORK $REMOTE_IFACE)
     $(ip_creation_commands $REMOTE_NETWORK $LOCAL_NETWORK $REMOTE_IFACE $LOCAL_IFACE)
+    $(udp_daemon_commands $REMOTE_PORT)
 EOF
 
 # set local
-sudo ip xfrm state add src $LOCAL_PUBLIC_IP dst $REMOTE_PUBLIC_IP proto esp spi $ID reqid $ID mode tunnel auth sha256 $KEY1 enc aes $KEY2 $UDP_ENCAP
-sudo ip xfrm state add src $REMOTE_PUBLIC_IP dst $LOCAL_PUBLIC_IP proto esp spi $ID reqid $ID mode tunnel auth sha256 $KEY1 enc aes $KEY2 $UDP_ENCAP_REVERSE
-sudo ip xfrm policy add src $LOCAL_NETWORK dst $REMOTE_NETWORK dir out tmpl src $LOCAL_PUBLIC_IP dst $REMOTE_PUBLIC_IP proto esp reqid $ID mode tunnel
-sudo ip xfrm policy add src $REMOTE_NETWORK dst $LOCAL_NETWORK dir in tmpl src $REMOTE_PUBLIC_IP dst $LOCAL_PUBLIC_IP proto esp reqid $ID mode tunnel
-sudo ip xfrm policy add src $REMOTE_NETWORK dst $LOCAL_NETWORK dir fwd tmpl src $REMOTE_PUBLIC_IP dst $LOCAL_PUBLIC_IP proto esp reqid $ID mode tunnel
+eval $(xfrm_creation_commands $LOCAL_PUBLIC_IP $REMOTE_PUBLIC_IP $LOCAL_NETWORK $REMOTE_NETWORK $LOCAL_UDP_PORT $REMOTE_UDP_PORT)
 eval $(ip_creation_commands $LOCAL_NETWORK $REMOTE_NETWORK $LOCAL_IFACE $REMOTE_IFACE)
+eval $(udp_daemon_commands $LOCAL_PORT)
